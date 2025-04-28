@@ -2,7 +2,7 @@
 
 // First, register the Service Worker
 if ('serviceWorker' in navigator && 'PushManager' in window) {
-    navigator.serviceWorker.register('/https://j-janota.github.io/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then(registration => {
         console.log('Service Worker registered!', registration);
   
