@@ -5,6 +5,7 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
     navigator.serviceWorker.register('sw.js')
       .then(registration => {
         console.log('Service Worker registered!', registration);
+        alert('Service Worker Registered');
   
         // Request Notification Permission
         return Notification.requestPermission();
@@ -21,6 +22,7 @@ if ('serviceWorker' in navigator && 'PushManager' in window) {
   document.getElementById('notifyBtn').addEventListener('click', async () => {
     const registration = await navigator.serviceWorker.ready;
     console.log("Notification sent");
+    alert("Notification sent");
     registration.showNotification('Yo dude!', {
       body: 'This is your site speaking. Wassup!',
     });
