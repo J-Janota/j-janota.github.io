@@ -8,13 +8,24 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>To Do List</h1>
-      <p class="tagline">Keep track of what matters</p>
-    </header>
+  <div class="container" id="todo-app-container">
+    <div class="container" id="auth-container">
+        <header>
+            <h1>Welcome!</h1>
+            <p class="tagline">Manage your tasks easily</p>
+            <button id="login-toggle-btn" class="login-btn">Login</button>
+            <button id="logout-btn" class="logout-btn hidden">Logout</button>
+        
+            <form id="auth-form" class="hidden" style="margin-top: 1rem;">
+              <input type="email" id="email-input" placeholder="Email" required>
+              <input type="password" id="password-input" placeholder="Password" required>
+              <button type="submit" id="login-btn">Submit</button>
+            </form>
+          </header>
+      </div>
 
     <div class="todo-container">
+        <p id="status-text" class="tagline" style="margin-top: 0.5rem; text-align: center;">Status: Checking...</p>
         <button id="show-form-btn" type="button" class="show-form-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="plus-icon">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -54,7 +65,8 @@
       </div>
     </div>
   </div>
-
-  <script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="script.js" defer></script>
 </body>
 </html>
