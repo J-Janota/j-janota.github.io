@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const supabaseUrl = 'https://vcpyjvibudqhvmztuwwg.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjcHlqdmlidWRxaHZtenR1d3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4NTYzNDYsImV4cCI6MjA2MTQzMjM0Nn0.EqXTM0BHgggbmPSlqFDX_v8mRwqwX60XJXXbZYof-UE';                       // CHANGE THIS
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    window.supabaseClient = supabase;
   
     const authContainer = document.getElementById('auth-container');
     const todoAppContainer = document.getElementById('todo-app-container');
@@ -69,9 +70,3 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusText.textContent = `Status: ${text}`;
     }
   }
-  
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (!session) {
-      showAuthScreen();
-    }
-  });
