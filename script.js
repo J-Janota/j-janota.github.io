@@ -21,13 +21,25 @@ document.addEventListener('DOMContentLoaded', () => {
         showFormBtn.classList.toggle('hidden');
     }
 
-    function loadTasks() {
-        const savedTasks = localStorage.getItem('tasks');
-        if (savedTasks) {
-            tasks = JSON.parse(savedTasks);
-            renderTasks();
+    async function loadTasks() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+      
+        const { data, error } = await supabase
+          .from('todos')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+      
+        if (error) {
+          console.error('Error loading tasks:', error);
+          return;
         }
-    }
+      
+        tasks = data;
+        await renderTasks(); // Important: await this now
+      }
+      
 
     function saveTasks() {
         localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -42,48 +54,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderTasks() {
+    async function renderTasks() {
         taskList.innerHTML = '';
-
-        tasks.forEach(task => {
-            const taskItem = document.createElement('li');
-            taskItem.className = `task-item ${task.completed ? 'completed' : ''}`;
-            taskItem.dataset.id = task.id;
-
-            let attachmentHtml = '';
-            if (task.attachment_url) {
-            if (task.attachment_url.match(/\.(jpeg|jpg|gif|png|webp|png)$/i)) {
-                attachmentHtml = `<img src="${task.attachment_url}" class="task-attachment" alt="Task image">`;
+      
+        for (const task of tasks) {
+          const taskItem = document.createElement('li');
+          taskItem.className = `task-item ${task.completed ? 'completed' : ''}`;
+          taskItem.dataset.id = task.id;
+      
+          let attachmentHtml = '';
+          if (task.attachment_url) {
+            const { data, error } = await supabase
+                const url = task.attachment_url; // already a public URL, use it as-is
+            if (error) {
+              console.error('Signed URL error:', error.message);
             } else {
-                attachmentHtml = `<a href="${task.attachment_url}" target="_blank" class="file-attachment">📎 Open Attachment</a>`;
+              const url = task.attachment_url;
+              if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+                attachmentHtml = `<img src="${url}" class="task-attachment" alt="Task image">`;
+              } else {
+                attachmentHtml = `<a href="${url}" target="_blank" class="file-attachment">📎 Open Attachment</a>`;
+              }
             }
-            }
-
-
-            const deadlineDate = task.deadline ? new Date(task.deadline) : null;
-            const formattedDeadline = deadlineDate ? deadlineDate.toLocaleDateString() : '';
-
-            taskItem.innerHTML = `
-          <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
-          <div class="task-content">
-            <h1 class="task-text">${escapeHtml(task.text)}</h1>
-            ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
-            ${task.deadline ? `<div class="task-deadline">📅 ${formattedDeadline}</div>` : ''}
-                ${attachmentHtml}
-          </div>
-          <button class="delete-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        `;
-
-            taskList.appendChild(taskItem);
-        });
-
+          }
+      
+          const deadlineDate = task.deadline ? new Date(task.deadline) : null;
+          const formattedDeadline = deadlineDate ? deadlineDate.toLocaleDateString() : '';
+      
+          taskItem.innerHTML = `
+            <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+            <div class="task-content">
+              <h1 class="task-text">${escapeHtml(task.text)}</h1>
+              ${task.description ? `<p class="task-description">${escapeHtml(task.description)}</p>` : ''}
+              ${task.deadline ? `<div class="task-deadline">📅 ${formattedDeadline}</div>` : ''}
+              ${attachmentHtml}
+            </div>
+            <button class="delete-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          `;
+      
+          taskList.appendChild(taskItem);
+        }
+      
         updateTaskCounter();
-    }
+      }
+      
 
     function escapeHtml(text) {
         const div = document.createElement('div');
@@ -98,32 +117,44 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!user) return;
       
         let fileUrl = null;
+        let filePath = null; // ✅ declare it here so it exists below
       
         if (file) {
           const fileExt = file.name.split('.').pop();
-          const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+          filePath = `${user.id}/${Date.now()}.${fileExt}`;
+          console.log('file sent to supabase', filePath);
       
-          // Upload to storage
           const { error: uploadError } = await supabase
             .storage
             .from('attachments')
             .upload(filePath, file);
-            console.log("file sent to supabase", filePath);
       
           if (uploadError) {
             console.error('File upload error:', uploadError);
-          } else {
-            // Get public URL
-            const { data: { publicUrl } } = supabase
-              .storage
-              .from('attachments')
-              .getPublicUrl(filePath);
+            alert('File upload failed');
+            return;
+          }
       
-            fileUrl = publicUrl;
+          console.log('Uploaded to:', filePath);
+      
+          const { data: publicUrlData, error: publicUrlError } = supabase
+            .storage
+            .from('attachments')
+            .getPublicUrl(filePath);
+      
+          if (publicUrlError) {
+            console.error('Public URL error:', publicUrlError);
+            alert('Failed to get file URL');
+            return;
+          }
+      
+          fileUrl = publicUrlData?.publicUrl || null;
+          if (!fileUrl) {
+            console.error('Failed to get public URL from Supabase');
+            return;
           }
         }
       
-        // Insert task into DB
         const { error } = await supabase
           .from('todos')
           .insert([
@@ -136,34 +167,52 @@ document.addEventListener('DOMContentLoaded', () => {
               attachment_url: fileUrl,
             }
           ]);
-          console.log("task sent to supabase", text, description, deadline, fileUrl);
       
         if (error) {
           console.error('Error saving task:', error);
+          alert('Task creation failed');
           return;
         }
       
-        loadTasks();
+        await loadTasks();
+      }
+      
+      
+
+      async function deleteTask(id) {
+        const { error } = await supabase
+          .from('todos')
+          .delete()
+          .eq('id', id);
+      
+        if (error) {
+          console.error('Error deleting task:', error);
+          return;
+        }
+      
+        tasks = tasks.filter(t => t.id !== id); // remove from local array
+        await renderTasks();
       }
       
 
-    function deleteTask(id) {
-        tasks = tasks.filter(task => task.id !== id);
-        saveTasks();
-        renderTasks();
-    }
-
-    function toggleTaskStatus(id) {
-        tasks = tasks.map(task => {
-            if (task.id === id) {
-                return { ...task, completed: !task.completed };
-            }
-            return task;
-        });
-
-        saveTasks();
-        renderTasks();
-    }
+    async function toggleTaskStatus(id) {
+        const task = tasks.find(t => t.id === id);
+        if (!task) return;
+      
+        const { error } = await supabase
+          .from('todos')
+          .update({ completed: !task.completed })
+          .eq('id', id);
+      
+        if (error) {
+          console.error('Error updating task:', error);
+          return;
+        }
+      
+        task.completed = !task.completed; // update local state
+        await renderTasks(); // yes, we re-render — but you could optimize this later
+      }
+      
 
     function clearCompletedTasks() {
         tasks = tasks.filter(task => !task.completed);
@@ -185,17 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
     taskList.addEventListener('click', event => {
         const taskItem = event.target.closest('.task-item');
         if (!taskItem) return;
-
+      
         const taskId = taskItem.dataset.id;
-
+      
         if (event.target.classList.contains('task-checkbox')) {
-            toggleTaskStatus(taskId);
+          toggleTaskStatus(taskId);
         }
-
+      
         if (event.target.closest('.delete-btn')) {
-            deleteTask(taskId);
+          deleteTask(taskId);
         }
-    });
+      });
 
     clearCompletedBtn.addEventListener('click', clearCompletedTasks);
 
