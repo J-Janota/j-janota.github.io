@@ -40,12 +40,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         } else {
           showTodoApp();
+          await window.loadTasks();
         }
       });
   
     logoutBtn.addEventListener('click', async () => {
       await supabase.auth.signOut();
       console.log('Logged out');
+      updateStatus('Logged out');
       showAuthScreen();
     });
   
@@ -73,3 +75,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusText.textContent = `Status: ${text}`;
     }
   }
+
