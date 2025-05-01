@@ -40,10 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await renderTasks(); // Important: await this now
       }
       
-
-    function saveTasks() {
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
+      window.loadTasks = loadTasks;
 
     function fileToBase64(file) {
         return new Promise((resolve, reject) => {
@@ -81,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const deadlineDate = task.deadline ? new Date(task.deadline) : null;
           const formattedDeadline = deadlineDate ? deadlineDate.toLocaleDateString() : '';
       
+          console.log("Re-rendering tasks");
           taskItem.innerHTML = `
             <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
             <div class="task-content">
@@ -180,6 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
 
       async function deleteTask(id) {
+        console.log("Trying to delete task with ID:", id);
+      
         const { error } = await supabase
           .from('todos')
           .delete()
@@ -190,18 +190,23 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       
-        tasks = tasks.filter(t => t.id !== id); // remove from local array
+        // 🧠 make sure types match
+        tasks = tasks.filter(t => t.id.toString() !== id.toString());
+      
         await renderTasks();
       }
       
+      
 
-    async function toggleTaskStatus(id) {
-        const task = tasks.find(t => t.id === id);
+      async function toggleTaskStatus(id) {
+        const task = tasks.find(t => t.id.toString() === id.toString());
         if (!task) return;
+      
+        const newStatus = !task.completed;
       
         const { error } = await supabase
           .from('todos')
-          .update({ completed: !task.completed })
+          .update({ completed: newStatus })
           .eq('id', id);
       
         if (error) {
@@ -209,16 +214,52 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       
-        task.completed = !task.completed; // update local state
-        await renderTasks(); // yes, we re-render — but you could optimize this later
+        task.completed = newStatus; // ✅ update it in memory!
+      
+        await renderTasks();
       }
       
+      
+      
 
-    function clearCompletedTasks() {
-        tasks = tasks.filter(task => !task.completed);
-        saveTasks();
-        renderTasks();
-    }
+      async function clearCompletedTasks() {
+        console.log("Before delete:", tasks.map(t => `${t.id}:${t.completed}`));
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn("User not logged in — can't clear completed tasks");
+          return;
+        }
+      
+        const completedTaskIds = tasks
+          .filter(t => t.completed)
+          .map(t => t.id);
+      
+        if (completedTaskIds.length === 0) {
+          console.log("No completed tasks to delete");
+          return;
+        }
+      
+        console.log("Deleting these task IDs from Supabase:", completedTaskIds);
+      
+        const { error } = await supabase
+          .from('todos')
+          .delete()
+          .in('id', completedTaskIds); // 🔥 deletes all completed tasks for the user
+      
+        if (error) {
+          console.error("Failed to delete completed tasks:", error);
+          alert("Something went wrong deleting completed tasks.");
+          return;
+        }
+      
+        // ✅ Remove them locally
+        tasks = tasks.filter(t => !t.completed);
+      
+        // ✅ Update the UI
+        await renderTasks();
+      }
+      
+      
 
     function updateTaskCounter() {
         const remainingTasks = tasks.filter(task => !task.completed).length;
