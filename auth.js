@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         authForm.classList.remove('hidden');
         logoutBtn.classList.add('hidden');
         updateStatus('Logged out');
+        const taskList = document.getElementById('task-list');
+      if (taskList) taskList.innerHTML = '';
+      if (typeof tasks !== 'undefined') tasks = [];
       }
   });
   
